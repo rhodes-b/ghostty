@@ -1563,7 +1563,6 @@ fn gtkMouseDown(
 ) callconv(.C) void {
     const event = gesture.as(gtk.EventController).getCurrentEvent() orelse return;
 
-    log.info("event type {}", .{event.getEventType()});
     // touch events are handled on their own
     const event_type = event.getEventType();
     if (event_type == gdk.EventType.touch_begin) {
@@ -1573,9 +1572,6 @@ fn gtkMouseDown(
     const gtk_mods = event.getModifierState();
 
     const button = translateMouseButton(gesture.as(gtk.GestureSingle).getCurrentButton());
-
-    log.info("button: {}", .{button});
-
     const mods = gtk_key.translateMods(gtk_mods);
 
     // If we don't have focus, grab it.
@@ -1695,23 +1691,63 @@ fn gtkMouseScrollPrecisionEnd(
 }
 
 fn gtkTouchDragBegin(
-    _: *gtk.GestureDrag,
+    gesture: *gtk.GestureDrag,
     x: f64,
     y: f64,
     self: *Surface,
 ) callconv(.C) void {
-    _ = self;
-    log.info("drag event begin: x:{} y:{}", .{x, y});
+    const scaled = self.scaledCoordinates(x, y);
+
+    const pos: apprt.CursorPos = .{
+        .x = @floatCast(@max(0, scaled.x)),
+        .y = @floatCast(scaled.y),
+    };
+    self.cursor_pos = pos;
+
+    const gl_area_widget = self.gl_area.as(gtk.Widget);
+    if (gl_area_widget.hasFocus() == 0) {
+        self.grabFocus();
+    }
+
+    const button = translateMouseButton(gesture.as(gtk.GestureSingle).getCurrentButton());
+
+    _ = self.core_surface.mouseButtonCallback(.press, button, .{}) catch |err| {
+        log.err("error in key callback err={}", .{err});
+        return;
+    };
 }
 
 fn gtkTouchDragUpdate(
-    _: *gtk.GestureDrag,
+    gesture: *gtk.GestureDrag,
     x: f64,
     y: f64,
     self: *Surface,
 ) callconv(.C) void {
-    _ = self;
-    log.info("drag event update: x:{} y:{}", .{x, y});
+    var start_x: f64 = 0;
+    var start_y: f64 = 0;
+    _ = gesture.getStartPoint(&start_x, &start_y);
+
+    const scaled_start = self.scaledCoordinates(start_x, start_y);
+    const scaled_offset = self.scaledCoordinates(x, y);
+
+    const pos: apprt.CursorPos = .{
+        .x = @floatCast(@max(0, scaled_start.x + scaled_offset.x)),
+        .y = @floatCast(scaled_start.y + scaled_offset.y),
+    };
+
+    const gl_area_widget = self.gl_area.as(gtk.Widget);
+    if (gl_area_widget.hasFocus() == 0) {
+        self.grabFocus();
+    }
+
+    // Our pos changed, update
+    self.cursor_pos = pos;
+
+    self.core_surface.cursorPosCallback(self.cursor_pos, .{}) catch |err| {
+        log.err("error in cursor pos callback err={}", .{err});
+        return;
+    };
+
 }
 
 fn gtkTouchDragEnd(
@@ -1721,7 +1757,8 @@ fn gtkTouchDragEnd(
     self: *Surface,
 ) callconv(.C) void {
     _ = self;
-    log.info("drag event update: x:{} y:{}", .{x, y});
+    _ = x;
+    _ = y;
 }
 
 fn gtkSwipe(
@@ -1731,7 +1768,8 @@ fn gtkSwipe(
     self: *Surface,
 ) callconv(.C) void {
     _ = self;
-    log.info("swipe velocity: x:{} y:{}", .{vel_x, vel_y});
+    _ = vel_x;
+    _ = vel_y;
 }
 
 fn gtkZoom(
@@ -1739,8 +1777,6 @@ fn gtkZoom(
     scale: f64,
     self: *Surface,
 ) callconv(.C) void {
-    // _ = self;
-    log.info("zoom scale {}", .{scale});
     if (scale >= 1) {
         _ = self.core_surface.performBindingAction(.{ .increase_font_size = 0.1 }) catch |err| {
             log.err("error changing font size err={}", .{err});
