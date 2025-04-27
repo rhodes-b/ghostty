@@ -437,6 +437,26 @@ pub fn init(self: *Surface, app: *App, opts: Options) !void {
     overlay_widget.addController(ec_scroll.as(gtk.EventController));
     errdefer overlay_widget.removeController(ec_scroll.as(gtk.EventController));
 
+    // Touchscreen events
+    const ec_drag = gtk.GestureDrag.new();
+    errdefer ec_drag.unref();
+    var ec_gesture_single = ec_drag.as(gtk.GestureSingle);
+    ec_gesture_single.setTouchOnly(1);
+    overlay_widget.addController(ec_drag.as(gtk.EventController));
+    errdefer overlay_widget.removeController(ec_drag.as(gtk.EventController));
+
+    const ec_zoom = gtk.GestureZoom.new();
+    errdefer ec_zoom.unref();
+    overlay_widget.addController(ec_zoom.as(gtk.EventController));
+    errdefer overlay_widget.removeController(ec_zoom.as(gtk.EventController));
+
+    const ec_long_press = gtk.GestureLongPress.new();
+    errdefer ec_long_press.unref();
+    ec_gesture_single = ec_long_press.as(gtk.GestureSingle);
+    ec_gesture_single.setTouchOnly(1);
+    overlay_widget.addController(ec_long_press.as(gtk.EventController));
+    errdefer overlay_widget.removeController(ec_long_press.as(gtk.EventController));
+
     // The input method context that we use to translate key events into
     // characters. This doesn't have an event key controller attached because
     // we call it manually from our own key controller.
@@ -643,6 +663,41 @@ pub fn init(self: *Surface, app: *App, opts: Options) !void {
         gtkMouseScrollPrecisionEnd,
         self,
         .{},
+    );
+    _ = gtk.GestureDrag.signals.drag_begin.connect(
+        ec_drag,
+        *Surface,
+        gtkTouchDragBegin,
+        self,
+        .{}
+    );
+    _ = gtk.GestureDrag.signals.drag_update.connect(
+        ec_drag,
+        *Surface,
+        gtkTouchDragUpdate,
+        self,
+        .{}
+    );
+    _ = gtk.GestureDrag.signals.drag_end.connect(
+        ec_drag,
+        *Surface,
+        gtkTouchDragEnd,
+        self,
+        .{}
+    );
+    _ = gtk.GestureZoom.signals.scale_changed.connect(
+        ec_zoom,
+        *Surface,
+        gtkZoom,
+        self,
+        .{}
+    );
+    _ = gtk.GestureLongPress.signals.pressed.connect(
+        ec_long_press,
+        *Surface,
+        gtkLongPress,
+        self,
+        .{}
     );
     _ = gtk.IMContext.signals.preedit_start.connect(
         im_context,
@@ -1508,9 +1563,19 @@ fn gtkMouseDown(
 ) callconv(.C) void {
     const event = gesture.as(gtk.EventController).getCurrentEvent() orelse return;
 
+    log.info("event type {}", .{event.getEventType()});
+    // touch events are handled on their own
+    const event_type = event.getEventType();
+    if (event_type == gdk.EventType.touch_begin) {
+        return;
+    }
+
     const gtk_mods = event.getModifierState();
 
     const button = translateMouseButton(gesture.as(gtk.GestureSingle).getCurrentButton());
+
+    log.info("button: {}", .{button});
+
     const mods = gtk_key.translateMods(gtk_mods);
 
     // If we don't have focus, grab it.
@@ -1627,6 +1692,80 @@ fn gtkMouseScrollPrecisionEnd(
     self: *Surface,
 ) callconv(.C) void {
     self.precision_scroll = false;
+}
+
+fn gtkTouchDragBegin(
+    _: *gtk.GestureDrag,
+    x: f64,
+    y: f64,
+    self: *Surface,
+) callconv(.C) void {
+    _ = self;
+    log.info("drag event begin: x:{} y:{}", .{x, y});
+}
+
+fn gtkTouchDragUpdate(
+    _: *gtk.GestureDrag,
+    x: f64,
+    y: f64,
+    self: *Surface,
+) callconv(.C) void {
+    _ = self;
+    log.info("drag event update: x:{} y:{}", .{x, y});
+}
+
+fn gtkTouchDragEnd(
+    _: *gtk.GestureDrag,
+    x: f64,
+    y: f64,
+    self: *Surface,
+) callconv(.C) void {
+    _ = self;
+    log.info("drag event update: x:{} y:{}", .{x, y});
+}
+
+fn gtkSwipe(
+    _: *gtk.GestureSwipe,
+    vel_x: f64,
+    vel_y: f64,
+    self: *Surface,
+) callconv(.C) void {
+    _ = self;
+    log.info("swipe velocity: x:{} y:{}", .{vel_x, vel_y});
+}
+
+fn gtkZoom(
+    _: *gtk.GestureZoom,
+    scale: f64,
+    self: *Surface,
+) callconv(.C) void {
+    // _ = self;
+    log.info("zoom scale {}", .{scale});
+    if (scale >= 1) {
+        _ = self.core_surface.performBindingAction(.{ .increase_font_size = 0.1 }) catch |err| {
+            log.err("error changing font size err={}", .{err});
+            return;
+        };
+    }
+    else {
+        _ = self.core_surface.performBindingAction(.{ .decrease_font_size = 0.1 }) catch |err| {
+            log.err("error changing font size err={}", .{err});
+            return;
+        };
+    }
+}
+
+fn gtkLongPress(
+    gesture: *gtk.GestureLongPress,
+    x: f64,
+    y: f64,
+    self: *Surface,
+) callconv(.C) void {
+    const button = translateMouseButton(gesture.as(gtk.GestureSingle).getCurrentButton());
+
+    if (button == .left) {
+        self.context_menu.popupAt(@intFromFloat(x), @intFromFloat(y));
+    }
 }
 
 fn gtkMouseScroll(
