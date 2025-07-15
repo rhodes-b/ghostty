@@ -731,10 +731,10 @@ const Subprocess = struct {
         // Setup our shell integration, if we can.
         const shell_command: configpkg.Command = shell: {
             const default_shell_command: configpkg.Command =
-                cfg.command orelse .{ .shell = switch (builtin.os.tag) {
+                cfg.command orelse .{ .cmd = .{ .shell = switch (builtin.os.tag) {
                     .windows => "cmd.exe",
                     else => "sh",
-                } };
+                } } };
 
             const force: ?shell_integration.Shell = switch (cfg.shell_integration) {
                 .none => {
@@ -1512,7 +1512,7 @@ fn execCommand(
         return try args.toOwnedSlice();
     }
 
-    return switch (command) {
+    return switch (command.cmd) {
         .direct => |v| v,
 
         .shell => |v| shell: {

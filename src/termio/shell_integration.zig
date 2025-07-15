@@ -51,7 +51,7 @@ pub fn setup(
         .elvish => "elvish",
         .fish => "fish",
         .zsh => "zsh",
-    } else switch (command) {
+    } else switch (command.cmd) {
         .direct => |v| std.fs.path.basename(v[0]),
         .shell => |v| exe: {
             // Shell strings can include spaces so we want to only
@@ -262,7 +262,7 @@ fn setupBash(
 
     // Iterator that yields each argument in the original command line.
     // This will allocate once proportionate to the command line length.
-    var iter = try command.argIterator(alloc);
+    var iter = try command.cmd.argIterator(alloc);
     defer iter.deinit();
 
     // Start accumulating arguments with the executable and initial flags.
@@ -356,7 +356,7 @@ fn setupBash(
 
     // Since we built up a command line, we don't need to wrap it in
     // ANOTHER shell anymore and can do a direct command.
-    return .{ .direct = try args.toOwnedSlice() };
+    return .{ .cmd = .{ .direct = try args.toOwnedSlice() } };
 }
 
 test "bash" {
@@ -368,7 +368,7 @@ test "bash" {
     var env = EnvMap.init(alloc);
     defer env.deinit();
 
-    const command = try setupBash(alloc, .{ .shell = "bash" }, ".", &env);
+    const command = try setupBash(alloc, .{ .cmd = .{ .shell = "bash" } }, ".", &env);
 
     try testing.expect(command.?.direct.len >= 2);
     try testing.expectEqualStrings("bash", command.?.direct[0]);

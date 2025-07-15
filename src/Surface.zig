@@ -662,7 +662,7 @@ pub fn init(
         // title to the command being executed. This allows window managers
         // to set custom styling based on the command being executed.
         const v = command orelse break :xdg;
-        const title = v.string(alloc) catch |err| {
+        const title = v.cmd.string(alloc) catch |err| {
             log.warn(
                 "error copying command for title, title will not be set err={}",
                 .{err},
@@ -675,25 +675,29 @@ pub fn init(
             .set_title,
             .{ .title = title },
         );
-    } else if (config.@"initial-command") |initial_command| {
-        switch (initial_command) {
-            // If a user specifies a command with `-e` it is appropriate to set the title
-            // as argv[0]
-            .direct => |cmd| {
-                if (cmd.len != 0) {
+    } else if (command) |cmd| if (cmd.from_user) {
+        switch (cmd.cmd) {
+            .direct => |cmd_str| {
+                if (cmd_str.len != 0) {
                     _ = try rt_app.performAction(
                         .{ .surface = self },
                         .set_title,
-                        .{ .title = cmd[0] },
+                        .{ .title = cmd_str[0] },
                     );
                 }
             },
-            // We won't set the title in the case the shell expands the command
-            // as that should typically be used to launch a shell which should
-            // set its own titles
-            .shell => {},
+            .shell => |cmd_str| {
+                log.info("shell cmd {s}\n", .{cmd_str});
+                if (cmd_str.len != 0) {
+                    _ = try rt_app.performAction(
+                        .{ .surface = self },
+                        .set_title,
+                        .{ .title = cmd_str },
+                    );
+                }
+            },
         }
-    }
+    };
 
     // We are no longer the first surface
     app.first = false;

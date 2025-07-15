@@ -3379,7 +3379,7 @@ pub fn loadCliArgs(self: *Config, alloc_gpa: Allocator) !void {
             }
 
             self.@"_xdg-terminal-exec" = true;
-            self.@"initial-command" = .{ .direct = try builder.toOwnedSlice() };
+            self.@"initial-command" = .{ .from_user = true, .cmd = .{ .direct = try builder.toOwnedSlice() } };
             return;
         }
     }
@@ -3834,7 +3834,7 @@ pub fn finalize(self: *Config) !void {
                     log.info("default shell source=env value={s}", .{value});
 
                     const copy = try alloc.dupeZ(u8, value);
-                    self.command = .{ .shell = copy };
+                    self.command = .{ .cmd = .{ .shell = copy } };
 
                     // If we don't need the working directory, then we can exit now.
                     if (!wd_home) break :command;
@@ -3845,7 +3845,7 @@ pub fn finalize(self: *Config) !void {
                 .windows => {
                     if (self.command == null) {
                         log.warn("no default shell found, will default to using cmd", .{});
-                        self.command = .{ .shell = "cmd.exe" };
+                        self.command = .{ .cmd = .{ .shell = "cmd.exe" } };
                     }
 
                     if (wd_home) {
@@ -3862,7 +3862,7 @@ pub fn finalize(self: *Config) !void {
                     if (self.command == null) {
                         if (pw.shell) |sh| {
                             log.info("default shell src=passwd value={s}", .{sh});
-                            self.command = .{ .shell = sh };
+                            self.command = .{ .cmd = .{ .shell = sh } };
                         }
                     }
 
@@ -3967,7 +3967,7 @@ pub fn parseManuallyHook(
         }
 
         // See "command" docs for the implied configurations and why.
-        self.@"initial-command" = .{ .direct = command.items };
+        self.@"initial-command" = .{ .from_user = true, .cmd = .{ .direct = command.items } };
         self.@"gtk-single-instance" = .false;
         self.@"quit-after-last-window-closed" = true;
         self.@"quit-after-last-window-closed-delay" = null;
