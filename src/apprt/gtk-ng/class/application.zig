@@ -648,6 +648,9 @@ pub const Application = extern struct {
             .toggle_split_zoom => return Action.toggleSplitZoom(target),
             .show_on_screen_keyboard => return Action.showOnScreenKeyboard(target),
 
+            .toggle_search_mode => return Action.toggleSearchMode(target, value),
+            .update_search_results => return Action.updateSearchResults(target, value),
+
             // Unimplemented
             .secure_input,
             .close_all_windows,
@@ -2387,6 +2390,17 @@ const Action = struct {
             .app => return false,
             .surface => |surface| {
                 return surface.rt_surface.gobj().controlInspector(value);
+            },
+        }
+    }
+
+    pub fn toggleSearchMode(target: apprt.Target, value: apprt.Action.Value(.toggle_search_mode)) bool {
+        switch (target) {
+            .app => return false,
+            .surface => |surface| {
+                _ = value;
+                surface.rt_surface.gobj().toggleSearchMode(true);
+                return true;
             },
         }
     }

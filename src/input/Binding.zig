@@ -1113,6 +1113,9 @@ pub const Action = union(enum) {
             .resize_split,
             .equalize_splits,
             .inspector,
+            .toggle_search,
+            .search_next,
+            .search_previous,
             => .surface,
         };
     }

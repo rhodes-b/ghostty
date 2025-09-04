@@ -24,7 +24,7 @@ pub const SearchBar = extern struct {
     const Self = @This();
     parent_instance: Parent,
     pub const Parent = gtk.Box;
-    
+
     // Define this as a GTK widget class using GObject system.
     // This makes the search bar work properly with GTK's widget system
     // and allows it to be embedded in other GTK containers.
@@ -90,7 +90,7 @@ pub const SearchBar = extern struct {
         // Shows an up arrow and moves backwards through search results.
         prev_button: *gtk.Button = undefined,
 
-        // Button to go to the next search result.  
+        // Button to go to the next search result.
         // Shows a down arrow and moves forwards through search results.
         next_button: *gtk.Button = undefined,
 
@@ -115,7 +115,7 @@ pub const SearchBar = extern struct {
     fn init(self: *Self) callconv(.C) void {
         // Get our private data storage
         const priv = self.private();
-        
+
         // Set up the main container as a horizontal box.
         // This arranges all search controls in a row from left to right.
         self.parent_instance.setOrientation(gtk.Orientation.horizontal);
@@ -127,16 +127,16 @@ pub const SearchBar = extern struct {
         priv.search_entry = gtk.Entry.new();
         priv.search_entry.setPlaceholderText("Search in terminal...");
         priv.search_entry.setMaxWidth(300); // Don't let it get too wide
-        
+
         // Create navigation buttons for moving between search results.
         // These have arrow icons to show direction and tooltips to help users.
         priv.prev_button = gtk.Button.new();
         priv.prev_button.setIconName("go-up-symbolic");
         priv.prev_button.setTooltipText("Previous result (Shift+F3)");
         priv.prev_button.addCssClass("circular"); // Round button style
-        
+
         priv.next_button = gtk.Button.new();
-        priv.next_button.setIconName("go-down-symbolic");  
+        priv.next_button.setIconName("go-down-symbolic");
         priv.next_button.setTooltipText("Next result (F3)");
         priv.next_button.addCssClass("circular"); // Round button style
 
@@ -169,7 +169,7 @@ pub const SearchBar = extern struct {
         // Connect text input events to handle user typing.
         // This triggers search as users type in the search box.
         _ = priv.search_entry.connectChanged(&onSearchChanged, self, .{});
-        
+
         // Connect keyboard events for the search entry.
         // This handles special keys like Enter and Escape in the search box.
         const key_controller = gtk.EventController.controllerKey.new();
@@ -224,11 +224,11 @@ pub const SearchBar = extern struct {
     // This triggers a new search with the updated text every time they type.
     fn onSearchChanged(self: *Self, _: *gtk.Entry) callconv(.C) void {
         const priv = self.private();
-        
+
         // Get the current text from the search input box.
         // This is what the user has typed so far.
         const search_text = priv.search_entry.getText();
-        
+
         // If we have a connected terminal surface, start searching.
         // The surface will use its SearchManager to find matches in history.
         if (priv.surface) |surface| {
@@ -256,9 +256,9 @@ pub const SearchBar = extern struct {
         _: *gtk.EventController,
     ) callconv(.C) bool {
         _ = keycode; // Not used but required by GTK
-        
+
         const priv = self.private();
-        
+
         // Check which key was pressed and handle accordingly
         switch (keyval) {
             // Enter key moves to next search result (like pressing F3)
@@ -270,7 +270,7 @@ pub const SearchBar = extern struct {
                 }
                 return true; // We handled this key press
             },
-            
+
             // Escape key closes the search bar and returns to normal mode
             gtk.KEY_Escape => {
                 gobject.ext.impl_helpers.emitSignal(
@@ -280,7 +280,7 @@ pub const SearchBar = extern struct {
                 );
                 return true; // We handled this key press
             },
-            
+
             // F3 key moves to next result, Shift+F3 moves to previous
             gtk.KEY_F3 => {
                 if (priv.surface) |surface| {
@@ -296,7 +296,7 @@ pub const SearchBar = extern struct {
                 }
                 return true; // We handled this key press
             },
-            
+
             else => return false, // Let GTK handle other keys normally
         }
     }
@@ -306,7 +306,7 @@ pub const SearchBar = extern struct {
     // It updates the counter label and enables/disables navigation buttons.
     pub fn updateResults(self: *Self, current: usize, total: usize) void {
         const priv = self.private();
-        
+
         // Update the results counter label text
         if (total == 0) {
             priv.results_label.setText("No results");
@@ -318,7 +318,7 @@ pub const SearchBar = extern struct {
             var buf: [64]u8 = undefined;
             const text = std.fmt.bufPrint(buf[0..], "{} of {} matches", .{ current, total }) catch "Error";
             priv.results_label.setText(text.ptr);
-            
+
             // Enable navigation buttons when there are results to navigate
             priv.prev_button.setSensitive(true);
             priv.next_button.setSensitive(true);
@@ -345,7 +345,7 @@ pub const SearchBar = extern struct {
     pub fn setSurface(self: *Self, surface: ?*Surface) void {
         const priv = self.private();
         priv.surface = surface;
-        
+
         // Clear any existing search when switching surfaces
         if (surface != null) {
             self.clearSearch();
@@ -356,14 +356,14 @@ pub const SearchBar = extern struct {
     // This sets up the widget class structure that GTK needs.
     const Class = struct {
         var parent: *gtk.Box.Class = undefined;
-        
+
         fn init(class: *Self.Class) callconv(.C) void {
             // Set up parent class and basic widget properties
             gobject.Object.Class.bindTemplateCallbacks(class, &[_]gobject.ext.TemplateCallback{});
-            
+
             // Install our custom properties so they can be set from outside
             properties.surface.impl.install(class);
-            
+
             // Install our custom signals so other widgets can listen to them
             signals.search_text_changed.impl.install(class);
             signals.search_closed.impl.install(class);

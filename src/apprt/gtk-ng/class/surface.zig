@@ -2676,6 +2676,97 @@ pub const Surface = extern struct {
         self.setTitleOverride(if (title.len == 0) null else title);
     }
 
+    /// Toggle the search mode on or off for this surface.
+    /// When enabled (visible=true), shows the search bar and focuses the search input.
+    /// When disabled (visible=false), hides the search bar and returns focus to terminal.
+    /// This is called when users press the search toggle keybinding (like Ctrl+F).
+    pub fn toggleSearchMode(self: *Self, visible: bool) void {
+        const priv = self.private();
+
+        if (visible) {
+            // Show search mode - create search bar if it doesn't exist yet
+            if (priv.search_bar == null) {
+                // Create a new search bar widget for this surface
+                // Create our new tab object
+                const search_bar = gobject.ext.newInstance(SearchBar, .{});
+                priv.search_bar = search_bar;
+                if (priv.search_bar) |search| {
+                    // Connect the search bar to this surface so it can search the terminal
+                    search.setSurface(self);
+
+                    // Connect search bar signals to handle user interactions
+                    _ = search.connectSignal(
+                        SearchBar.signals.search_text_changed.name,
+                        &onSearchTextChanged,
+                        self,
+                        .{},
+                    );
+                    _ = search.connectSignal(
+                        SearchBar.signals.search_closed.name,
+                        &onSearchClosed,
+                        self,
+                        .{},
+                    );
+
+                    // Add the search bar to the parent container
+                    // For now we'll add it to the main widget. In a full implementation,
+                    // this would need to be added to a proper container like a VBox
+                    // that contains both the search bar and the terminal area.
+                    self.parent_instance.setChild(search.as(gtk.Widget));
+                }
+            }
+
+            // Show the search bar and give it keyboard focus
+            if (priv.search_bar) |search_bar| {
+                search_bar.as(gtk.Widget).setVisible(true);
+                search_bar.focusSearchEntry();
+            }
+        } else {
+            // Hide search mode - hide the search bar and return focus to terminal
+            if (priv.search_bar) |search_bar| {
+                search_bar.as(gtk.Widget).setVisible(false);
+                search_bar.clearSearch();
+                // Return keyboard focus to the terminal surface
+                self.grabFocus();
+            }
+        }
+    }
+
+    /// Update the search results display in the search bar.
+    /// This is called when the search finds matches or user navigates between results.
+    /// Shows "X of Y matches" or "No results" in the search bar.
+    pub fn updateSearchResults(self: *Self, current: usize, total: usize) void {
+        const priv = self.private();
+        if (priv.search_bar) |search_bar| {
+            search_bar.updateResults(current, total);
+        }
+    }
+
+    /// Handle when user types text in the search bar.
+    /// This callback is triggered every time the search text changes.
+    /// It starts a new search in the terminal with the updated text.
+    fn onSearchTextChanged(
+        self: *Self,
+        search_text: [:0]const u8,
+        _: *SearchBar,
+    ) callconv(.C) void {
+        // Start searching in the terminal with the new text
+        const surface = self.core() orelse return;
+        surface.startSearch(search_text) catch |err| {
+            log.warn("failed to start search: {}", .{err});
+        };
+    }
+
+    /// Handle when user closes the search bar.
+    /// This callback is triggered when user presses Escape or clicks close button.
+    /// It hides the search bar and returns focus to the terminal.
+    fn onSearchClosed(
+        self: *Self,
+        _: *SearchBar,
+    ) callconv(.C) void {
+        self.toggleSearchMode(false);
+    }
+
     const C = Common(Self, Private);
     pub const as = C.as;
     pub const ref = C.ref;
@@ -3113,95 +3204,6 @@ const Clipboard = struct {
         state: apprt.ClipboardRequest,
     };
 };
-
-/// Toggle the search mode on or off for this surface.
-/// When enabled (visible=true), shows the search bar and focuses the search input.
-/// When disabled (visible=false), hides the search bar and returns focus to terminal.
-/// This is called when users press the search toggle keybinding (like Ctrl+F).
-pub fn toggleSearchMode(self: *Self, visible: bool) void {
-    const priv = self.private();
-    
-    if (visible) {
-        // Show search mode - create search bar if it doesn't exist yet
-        if (priv.search_bar == null) {
-            // Create a new search bar widget for this surface
-            priv.search_bar = SearchBar.new();
-            if (priv.search_bar) |search_bar| {
-                // Connect the search bar to this surface so it can search the terminal
-                search_bar.setSurface(self);
-                
-                // Connect search bar signals to handle user interactions
-                _ = search_bar.connectSignal(
-                    SearchBar.signals.search_text_changed.name,
-                    &onSearchTextChanged,
-                    self,
-                    .{},
-                );
-                _ = search_bar.connectSignal(
-                    SearchBar.signals.search_closed.name,
-                    &onSearchClosed,
-                    self,
-                    .{},
-                );
-                
-                // Add the search bar to the parent container
-                // For now we'll add it to the main widget. In a full implementation,
-                // this would need to be added to a proper container like a VBox
-                // that contains both the search bar and the terminal area.
-                self.parent_instance.setChild(search_bar.as(gtk.Widget));
-            }
-        }
-        
-        // Show the search bar and give it keyboard focus
-        if (priv.search_bar) |search_bar| {
-            search_bar.as(gtk.Widget).setVisible(true);
-            search_bar.focusSearchEntry();
-        }
-    } else {
-        // Hide search mode - hide the search bar and return focus to terminal
-        if (priv.search_bar) |search_bar| {
-            search_bar.as(gtk.Widget).setVisible(false);
-            search_bar.clearSearch();
-            // Return keyboard focus to the terminal surface
-            self.grabFocus();
-        }
-    }
-}
-
-/// Update the search results display in the search bar.
-/// This is called when the search finds matches or user navigates between results.
-/// Shows "X of Y matches" or "No results" in the search bar.
-pub fn updateSearchResults(self: *Self, current: usize, total: usize) void {
-    const priv = self.private();
-    if (priv.search_bar) |search_bar| {
-        search_bar.updateResults(current, total);
-    }
-}
-
-/// Handle when user types text in the search bar.
-/// This callback is triggered every time the search text changes.
-/// It starts a new search in the terminal with the updated text.
-fn onSearchTextChanged(
-    self: *Self,
-    search_text: [:0]const u8,
-    _: *SearchBar,
-) callconv(.C) void {
-    // Start searching in the terminal with the new text
-    const surface = self.core() orelse return;
-    surface.startSearch(search_text) catch |err| {
-        log.warn("failed to start search: {}", .{err});
-    };
-}
-
-/// Handle when user closes the search bar.
-/// This callback is triggered when user presses Escape or clicks close button.
-/// It hides the search bar and returns focus to the terminal.
-fn onSearchClosed(
-    self: *Self,
-    _: *SearchBar,
-) callconv(.C) void {
-    self.toggleSearchMode(false);
-}
 
 /// Compute a fraction [0.0, 1.0] from the supplied progress, which is clamped
 /// to [0, 100].

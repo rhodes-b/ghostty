@@ -472,6 +472,12 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Quit the application.",
         }},
 
+        .toggle_search => comptime &.{.{
+            .action = .toggle_search,
+            .title = "Toggle search",
+            .description = "Toggle search mode",
+        }},
+
         // No commands because they're parameterized and there
         // aren't obvious values users would use. It is possible that
         // these may have commands in the future if there are very
@@ -499,6 +505,8 @@ fn actionCommands(action: Action.Key) []const Command {
         .previous_tab,
         .next_tab,
         .last_tab,
+        .search_next,
+        .search_previous,
         => comptime &.{},
 
         // No commands for obvious reasons
