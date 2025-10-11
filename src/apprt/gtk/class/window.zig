@@ -590,6 +590,10 @@ pub const Window = extern struct {
             }
         }
 
+        if (self.isQuickTerminal()) {
+            widget.addCssClass("quick-terminal");
+        }
+
         // Trigger all our dynamic properties that depend on the config.
         inline for (&.{
             "headerbar-visible",
