@@ -305,6 +305,24 @@ pub const Surface = extern struct {
             );
         };
 
+        pub const @"read-only" = struct {
+            pub const name = "read-only";
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                bool,
+                .{
+                    .default = false,
+                    .accessor = gobject.ext.privateFieldAccessor(
+                        Self,
+                        Private,
+                        &Private.offset,
+                        "read_only",
+                    ),
+                },
+            );
+        };
+
         pub const hadjustment = struct {
             pub const name = "hadjustment";
             const impl = gobject.ext.defineProperty(
@@ -547,9 +565,6 @@ pub const Surface = extern struct {
         url_left: *gtk.Label,
         url_right: *gtk.Label,
 
-        // The read only overlay
-        read_only: *gtk.MenuButton,
-
         /// The resize overlay
         resize_overlay: *ResizeOverlay,
 
@@ -610,6 +625,10 @@ pub const Surface = extern struct {
         // True if the current surface is a split, this is used to apply
         // unfocused-split-* options
         is_split: bool = false,
+
+        // True if this surface is read only. When true the user is shown
+        // an overlay
+        read_only: bool = false,
 
         action_group: ?*gio.SimpleActionGroup = null,
 
@@ -988,14 +1007,11 @@ pub const Surface = extern struct {
 
     pub fn toggleReadOnly(self: *Self) bool {
         const priv = self.private();
-
-        const readOnlyWidget = priv.read_only.as(gtk.Widget);
-        if (readOnlyWidget.getVisible() == 1) {
-            readOnlyWidget.setVisible(@intFromBool(false));
-        } else {
-            readOnlyWidget.setVisible(@intFromBool(true));
-        }
-
+        priv.read_only = !priv.read_only;
+        self.as(gobject.Object).notifyByPspec(
+            properties.@"read-only".impl.param_spec
+        );
+        log.info("read only state {}", .{priv.read_only});
         return true;
     }
 
@@ -3272,7 +3288,6 @@ pub const Surface = extern struct {
             class.bindTemplateChildPrivate("gl_area", .{});
             class.bindTemplateChildPrivate("url_left", .{});
             class.bindTemplateChildPrivate("url_right", .{});
-            class.bindTemplateChildPrivate("read_only", .{});
             class.bindTemplateChildPrivate("child_exited_overlay", .{});
             class.bindTemplateChildPrivate("context_menu", .{});
             class.bindTemplateChildPrivate("error_page", .{});
@@ -3339,6 +3354,7 @@ pub const Surface = extern struct {
                 properties.@"title-override".impl,
                 properties.zoom.impl,
                 properties.@"is-split".impl,
+                properties.@"read-only".impl,
 
                 // For Gtk.Scrollable
                 properties.hadjustment.impl,

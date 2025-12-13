@@ -158,19 +158,20 @@ Overlay terminal_page {
       previous-match => $search_previous_match();
     }
 
-    MenuButton read_only {
+    MenuButton {
       styles [
         "read-only",
       ]
 
-      visible: false;
+      visible: bind template.read-only;
       halign: end;
       valign: start;
       margin-end: 15;
       margin-top: 15;
+
       always-show-arrow: false;
       direction: none;
-      label: "Read-only";
+      label: _("Read-only");
 
       popover: Popover {
         child: Label {
