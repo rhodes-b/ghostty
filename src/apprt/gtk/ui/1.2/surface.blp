@@ -156,6 +156,28 @@ Overlay terminal_page {
   }
 
   [overlay]
+  MenuButton read_only {
+    styles [
+        "read-only"
+    ]
+
+    visible: false;
+    halign: end;
+    valign: start;
+    margin-end: 15;
+    margin-top: 15;
+    always-show-arrow: false;
+    direction: none;
+    label: "Read-only";
+
+    popover: Popover {
+        child: Label {
+            label: "This terminal is in read-only mode.\nYou can still view, select, and scroll through the content,\nbut no input events will be sent to the running application.";
+        };
+    };
+  }
+
+  [overlay]
   // Apply unfocused-split-fill and unfocused-split-opacity to current surface
   // this is only applied when a tab has more than one surface
   Revealer {

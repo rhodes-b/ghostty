@@ -547,6 +547,9 @@ pub const Surface = extern struct {
         url_left: *gtk.Label,
         url_right: *gtk.Label,
 
+        // The read only overlay
+        read_only: *gtk.MenuButton,
+
         /// The resize overlay
         resize_overlay: *ResizeOverlay,
 
@@ -978,6 +981,19 @@ pub const Surface = extern struct {
             defer alloc.free(body);
 
             self.sendDesktopNotification(title, body);
+        }
+
+        return true;
+    }
+
+    pub fn toggleReadOnly(self: *Self) bool {
+        const priv = self.private();
+
+        const readOnlyWidget = priv.read_only.as(gtk.Widget);
+        if (readOnlyWidget.getVisible() == 1) {
+            readOnlyWidget.setVisible(@intFromBool(false));
+        } else {
+            readOnlyWidget.setVisible(@intFromBool(true));
         }
 
         return true;
@@ -3256,6 +3272,7 @@ pub const Surface = extern struct {
             class.bindTemplateChildPrivate("gl_area", .{});
             class.bindTemplateChildPrivate("url_left", .{});
             class.bindTemplateChildPrivate("url_right", .{});
+            class.bindTemplateChildPrivate("read_only", .{});
             class.bindTemplateChildPrivate("child_exited_overlay", .{});
             class.bindTemplateChildPrivate("context_menu", .{});
             class.bindTemplateChildPrivate("error_page", .{});
