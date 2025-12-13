@@ -1009,9 +1009,8 @@ pub const Surface = extern struct {
         const priv = self.private();
         priv.read_only = !priv.read_only;
         self.as(gobject.Object).notifyByPspec(
-            properties.@"read-only".impl.param_spec
+            properties.@"read-only".impl.param_spec,
         );
-        log.info("read only state {}", .{priv.read_only});
         return true;
     }
 
