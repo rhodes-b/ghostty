@@ -735,6 +735,11 @@ pub const Window = extern struct {
             widget.removeCssClass(class.ptr);
     }
 
+    fn hasCssClass(self: *Self, class: [:0]const u8) bool {
+        const widget = self.as(gtk.Widget);
+        return widget.hasCssClass(class.ptr) == 1;
+    }
+
     /// Perform a binding action on the window's active surface.
     fn performBindingAction(
         self: *Self,
@@ -907,6 +912,17 @@ pub const Window = extern struct {
             // Anything non-none to none
             .auto, .client, .server => .none,
         });
+    }
+
+    /// Toggle background opacity for this window
+    pub fn toggleBackgroundOpacity(self: *Self) void {
+        const priv = self.private();
+
+        const config = if (priv.config) |v| v.get() else return;
+        if (config.@"background-opacity" < 1) {
+            const val = self.hasCssClass("background");
+            self.toggleCssClass("background", !val);
+        }
     }
 
     /// Set the window decoration override for this window. If this is null,

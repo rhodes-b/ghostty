@@ -765,12 +765,13 @@ pub const Application = extern struct {
             .search_total => Action.searchTotal(target, value),
             .search_selected => Action.searchSelected(target, value),
 
+            .toggle_background_opacity => return Action.toggleBackgroundOpacity(target),
+
             // Unimplemented
             .secure_input,
             .close_all_windows,
             .float_window,
             .toggle_visibility,
-            .toggle_background_opacity,
             .cell_size,
             .render_inspector,
             .renderer_health,
@@ -2736,6 +2737,25 @@ const Action = struct {
                 };
 
                 window.toggleWindowDecorations();
+                return true;
+            },
+        }
+    }
+
+    pub fn toggleBackgroundOpacity(target: apprt.Target) bool {
+        switch (target) {
+            .app => return false,
+            .surface => |core| {
+                const surface = core.rt_surface.surface;
+                const window = ext.getAncestor(
+                    Window,
+                    surface.as(gtk.Widget),
+                ) orelse {
+                    log.warn("surface is not in a window, ignoring toggle_background_opacity", .{});
+                    return false;
+                };
+
+                window.toggleBackgroundOpacity();
                 return true;
             },
         }

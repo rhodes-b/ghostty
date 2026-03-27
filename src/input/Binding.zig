@@ -824,8 +824,6 @@ pub const Action = union(enum) {
     ///
     /// When `background-opacity` is less than 1, this action will either make
     /// the window transparent or not depending on its current transparency state.
-    ///
-    /// Only implemented on macOS.
     toggle_background_opacity,
 
     /// Check for updates.
